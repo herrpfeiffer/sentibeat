@@ -86,6 +86,19 @@ export default function App() {
   const totalWidth = CHART_PADDING_X * 2 + (events.length - 1) * POINT_SPACING
   const viewWidth = typeof window !== 'undefined' ? Math.max(800, window.innerWidth - 80) : 1000
 
+  const areaPathD = useMemo(() => {
+    if (points.length < 2) return ''
+    const centerY = CHART_HEIGHT / 2
+    const first = points[0]
+    const last = points[points.length - 1]
+    let d = `M ${first.x} ${centerY} L ${last.x} ${centerY} L ${last.x} ${last.y}`
+    for (let i = points.length - 2; i >= 0; i--) {
+      d += ` L ${points[i].x} ${points[i].y}`
+    }
+    d += ' Z'
+    return d
+  }, [points])
+
   useEffect(() => {
     if (!scrollRef.current || totalWidth <= viewWidth) return
     scrollRef.current.scrollLeft = totalWidth - viewWidth
@@ -94,8 +107,8 @@ export default function App() {
   const SIDEBAR_WIDTH = 320
 
   return (
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '24px' }}>
-      <header style={{ marginBottom: '16px', borderBottom: '1px solid var(--border)', paddingBottom: '12px' }}>
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '24px', minHeight: 0, height: '100%' }}>
+      <header style={{ marginBottom: '16px', flexShrink: 0, borderBottom: '1px solid var(--border)', paddingBottom: '12px' }}>
         <h1 style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, fontSize: '1.25rem', margin: 0 }}>
           Sentibeat — AI Sentiment Pulse
         </h1>
@@ -104,12 +117,15 @@ export default function App() {
         </p>
       </header>
 
-      <div style={{ display: 'flex', gap: '24px', flex: 1, minHeight: 0 }}>
+      <div style={{ display: 'flex', gap: '24px', flex: 1, minHeight: 0, overflow: 'hidden' }}>
         {/* Chart: takes remaining space */}
         <div
           ref={scrollRef}
           style={{
             flex: 1,
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
             overflowX: 'auto',
             overflowY: 'hidden',
             minWidth: 0,
@@ -119,7 +135,7 @@ export default function App() {
             border: '1px solid var(--border)',
           }}
         >
-        <div style={{ position: 'relative', width: totalWidth, height: CHART_HEIGHT + CHART_PADDING_Y * 2 }}>
+        <div style={{ position: 'relative', width: totalWidth, height: CHART_HEIGHT + CHART_PADDING_Y * 2, flexShrink: 0 }}>
           {/* Background layer: grid + baseline only */}
           <svg
             width={totalWidth}
@@ -127,19 +143,28 @@ export default function App() {
             style={{ display: 'block', position: 'relative', zIndex: 0 }}
           >
             <defs>
-              <pattern id="chartGrid" width={40} height={40} patternUnits="userSpaceOnUse">
-                <path d="M 40 0 L 0 0 0 40" fill="none" stroke="var(--border)" strokeWidth={0.5} opacity={0.4} />
+              <pattern id="chartGrid" width={20} height={20} patternUnits="userSpaceOnUse">
+                <path d="M 20 0 L 0 0 0 20" fill="none" stroke="var(--border)" strokeWidth={0.5} opacity={0.4} />
               </pattern>
+              <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2={CHART_HEIGHT} gradientUnits="userSpaceOnUse">
+                <stop offset="0" stopColor="var(--positive)" stopOpacity="0.35" />
+                <stop offset="0.5" stopColor="var(--positive)" stopOpacity="0" />
+                <stop offset="0.5" stopColor="var(--negative)" stopOpacity="0" />
+                <stop offset="1" stopColor="var(--negative)" stopOpacity="0.35" />
+              </linearGradient>
             </defs>
             <g transform={`translate(0, ${CHART_PADDING_Y})`}>
               <rect x={0} y={0} width={totalWidth} height={CHART_HEIGHT} fill="url(#chartGrid)" />
+              {areaPathD && (
+                <path d={areaPathD} fill="url(#areaGradient)" stroke="none" />
+              )}
               <line
                 x1={CHART_PADDING_X}
                 y1={CHART_HEIGHT / 2}
                 x2={totalWidth - CHART_PADDING_X}
                 y2={CHART_HEIGHT / 2}
                 stroke="var(--border)"
-                strokeWidth={1}
+                strokeWidth={2}
                 strokeDasharray="4 4"
                 opacity={0.6}
               />
@@ -263,6 +288,7 @@ export default function App() {
               display: 'flex',
               flexDirection: 'column',
               minHeight: 0,
+              overflow: 'hidden',
               background: 'var(--panel)',
               borderRadius: '8px',
               border: '1px solid var(--border)',
@@ -277,11 +303,12 @@ export default function App() {
                 margin: 0,
                 padding: '12px 16px',
                 borderBottom: '1px solid var(--border)',
+                flexShrink: 0,
               }}
             >
               LATEST
             </h2>
-            <div style={{ flex: 1, overflowY: 'auto', padding: '8px' }}>
+            <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden', padding: '8px' }}>
               {[...events].reverse().map((entry) => (
                 <ArticleCard key={entry.id} entry={entry} />
               ))}
@@ -290,7 +317,7 @@ export default function App() {
         </aside>
       </div>
 
-      <footer style={{ marginTop: '16px', display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+      <footer style={{ marginTop: '16px', flexShrink: 0, display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
         {SOURCES.map((s) => (
           <span
             key={s.id}
